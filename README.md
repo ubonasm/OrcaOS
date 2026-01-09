@@ -1,8 +1,9 @@
 # OrcaOS - Web-based OS Simulator
-<img width="495" height="495" alt="orca-icon" src="https://github.com/user-attachments/assets/8f806289-0d74-4f4c-b5ce-1252bdc81959" />
+<img width="320" height="320" alt="orca-icon" src="https://github.com/user-attachments/assets/8f806289-0d74-4f4c-b5ce-1252bdc81959" />
 
 超軽量なウェブベースのOSシミュレーター。デスクトップUI、ターミナル、ファイルマネージャーを備えています。
 OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, terminal, file manager, Notebook for Python and R, and LAMP(Apache, MySL, PHP).
+<img width="320" alt="スクリーンショット 2026-01-09 123741" src="https://github.com/user-attachments/assets/c63808e2-09a2-432a-8609-2dbd8fe3d363" />
 
 
 ## Features(特徴)
@@ -19,6 +20,7 @@ OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, termin
 - Modern dark theme
 - Runs entirely in your browser
 - Cross-platform support (Windows, macOS, Linux)
+<img width="1200" alt="スクリーンショット 2026-01-09 124158" src="https://github.com/user-attachments/assets/a8b1c6a5-77de-4ce2-8569-5b184f7a8263" />
 
 
 ## System Requirements(システム要件)
@@ -41,6 +43,7 @@ OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, termin
 1. Open the project folder
 2. Double-click `setup.bat`
 3. Installation and startup complete automatically
+<img width="320" alt="スクリーンショット 2026-01-09 124246" src="https://github.com/user-attachments/assets/438d122e-a32d-4662-979e-c42282947c2f" />
 
 ### Subsequent Running(2回目以降の起動)
 
