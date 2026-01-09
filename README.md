@@ -2,6 +2,7 @@
 <img width="320" height="320" alt="orca-icon" src="https://github.com/user-attachments/assets/8f806289-0d74-4f4c-b5ce-1252bdc81959" />
 
 超軽量なウェブベースのOSシミュレーター。デスクトップUI、ターミナル、ファイルマネージャーを備えています。
+
 OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, terminal, file manager, Notebook for Python and R, and LAMP(Apache, MySL, PHP).
 
 <img width="320" alt="スクリーンショット 2026-01-09 123741" src="https://github.com/user-attachments/assets/c63808e2-09a2-432a-8609-2dbd8fe3d363" />
