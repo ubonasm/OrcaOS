@@ -141,12 +141,13 @@ $ date
 $ whoami
 ```
 
+
 ## LAMP機能
 ### apacheの起動
 <img width="640" alt="orcaos-01" src="https://github.com/user-attachments/assets/d6ef5527-b81f-48b1-b6d6-d52edcdb662e" />
 
 1. ターミナルを起動する
-2. 2. apache2 start
+2. apache2 start
 
 ### webブラウザの起動
 <img width="640" alt="orcaos-02" src="https://github.com/user-attachments/assets/f84c6afe-a998-453b-bdc5-0534aa407a6f" />
@@ -157,6 +158,8 @@ $ whoami
 <img width="640" alt="orcaos-03" src="https://github.com/user-attachments/assets/c7159730-6c6e-4a14-a8d3-26a27405c4fa" />
 
 1. アイコンをクリックする
+
+
 
 
 ## プロジェクト構造
