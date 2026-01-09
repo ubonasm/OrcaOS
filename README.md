@@ -57,7 +57,6 @@ Simply double-click `start.bat`
 ### Manual Setup(手動セットアップ)
 
 コマンドプロンプトで:
-
 In Command Prompt:
 
 ```bash
@@ -68,7 +67,6 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開く
-
 Open http://localhost:3000 in your browser
 
 
@@ -98,7 +96,6 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開く
-
 Open http://localhost:3000 in your browser
 
 
