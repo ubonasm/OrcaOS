@@ -96,46 +96,6 @@ npm run dev
 Open http://localhost:3000 in your browser
 
 
-
-## トラブルシューティング
-### localhost:3000に接続できない場合
-
-#### Windows
-```bash
-check-system.bat
-```
-
-#### macOS/Linux
-```bash
-./check-system.sh
-```
-
-#### Node.jsを確認
-```bash
-node --version
-```
-表示されない場合は https://nodejs.org/ からインストール
-
-#### 依存関係を再インストール
-```bash
-npm install
-```
-
-#### サーバーを手動起動
-```bash
-npm run dev
-```
-
-#### 別のポートを使用
-```bash
-npm run dev -- -p 3001
-```
-ブラウザで http://localhost:3001 を開く
-
-詳細は `TROUBLESHOOTING.md` を参照してください。
-
-
-
 ## 利用可能なターミナルコマンド
 ### ファイル操作
 - `ls [dir]` - ディレクトリの内容を表示
@@ -149,12 +109,10 @@ npm run dev -- -p 3001
 - `mv <src> <dst>` - ファイルを移動/名前変更
 - `find <name>` - ファイルを名前で検索
 - `grep <text> <file>` - ファイル内のテキストを検索
-
 ### テキストエディタ
 - `vi <file>` - viエディタ（シミュレート）
 - `nano <file>` - nanoエディタ（シミュレート）
 - `echo <text> [> file]` - テキストを表示/ファイルに書き込み
-
 ### システム情報
 - `clear` - ターミナルをクリア
 - `date` - 現在の日時を表示
@@ -166,8 +124,6 @@ npm run dev -- -p 3001
 - `env` - 環境変数を表示
 - `help` - コマンド一覧を表示
 - `history` - コマンド履歴のヒント
-
-
 ### 使用例
 ```bash
 # ディレクトリを作成してファイルを作成
@@ -176,16 +132,26 @@ $ cd myproject
 $ touch readme.txt
 $ echo "Hello OrcaOS" > readme.txt
 $ cat readme.txt
-
 # ファイルを検索
 $ find readme
 $ grep Hello readme.txt
-
 # システム情報を確認
 $ uname
 $ date
 $ whoami
 ```
+
+## LAMP機能
+### apacheの起動
+<img width="640" alt="orcaos-01" src="https://github.com/user-attachments/assets/d6ef5527-b81f-48b1-b6d6-d52edcdb662e" />
+1. ターミナルを起動する
+2. 2. apache2 start
+### webブラウザの起動
+<img width="640" alt="orcaos-02" src="https://github.com/user-attachments/assets/f84c6afe-a998-453b-bdc5-0534aa407a6f" />
+1. アイコンをクリックする
+### MySQLの利用
+<img width="640" alt="orcaos-03" src="https://github.com/user-attachments/assets/c7159730-6c6e-4a14-a8d3-26a27405c4fa" />
+1. アイコンをクリックする
 
 
 ## プロジェクト構造
