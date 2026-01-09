@@ -22,6 +22,7 @@ OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, termin
 - Modern dark theme
 - Runs entirely in your browser
 - Cross-platform support (Windows, macOS, Linux)
+
 <img width="1200" alt="スクリーンショット 2026-01-09 124158" src="https://github.com/user-attachments/assets/a8b1c6a5-77de-4ce2-8569-5b184f7a8263" />
 
 
@@ -45,6 +46,7 @@ OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, termin
 1. Open the project folder
 2. Double-click `setup.bat`
 3. Installation and startup complete automatically
+
 <img width="320" alt="スクリーンショット 2026-01-09 124246" src="https://github.com/user-attachments/assets/438d122e-a32d-4662-979e-c42282947c2f" />
 
 ### Subsequent Running(2回目以降の起動)
@@ -55,6 +57,7 @@ Simply double-click `start.bat`
 ### Manual Setup(手動セットアップ)
 
 コマンドプロンプトで:
+
 In Command Prompt:
 
 ```bash
@@ -65,6 +68,7 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開く
+
 Open http://localhost:3000 in your browser
 
 
@@ -94,6 +98,7 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開く
+
 Open http://localhost:3000 in your browser
 
 
@@ -160,6 +165,12 @@ $ whoami
 
 1. アイコンをクリックする
 
+
+
+## Python
+1. ターミナルの起動
+2. Pythonコマンドを入力する
+<img width="640" alt="スクリーンショット 2026-01-09 221506" src="https://github.com/user-attachments/assets/f53762bd-35f7-40fa-87df-faa053f7b4dc" />
 
 
 
