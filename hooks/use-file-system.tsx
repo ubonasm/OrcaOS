@@ -549,16 +549,35 @@ VERSION=1.0.0`
         }
         const src = args[0]
         const dst = args[1]
-        const dir = getDirectory(currentPath)
-        if (dir?.type === "directory" && dir.children?.[src]) {
-          const srcFile = dir.children[src]
-          if (srcFile.type === "file") {
-            createFile(`${currentPath}/${dst}`, srcFile.content || "")
-            return ""
-          }
-          return `cp: ${src}: Is a directory`
+
+        let srcPath = src
+        if (!src.startsWith("/")) {
+          srcPath = `${currentPath}/${src}`
         }
-        return `cp: ${src}: No such file`
+
+        // Read source file content
+        const content = readFile(srcPath)
+        if (content === null) {
+          return `cp: ${src}: No such file`
+        }
+
+        let dstPath = dst
+        if (!dst.startsWith("/")) {
+          dstPath = `${currentPath}/${dst}`
+        }
+
+        const dstParts = dstPath.split("/").filter(Boolean)
+        const dstFilename = dstParts.pop()
+        const dstDir = dstParts.length > 0 ? `/${dstParts.join("/")}` : "/"
+
+        if (!getDirectory(dstDir)) {
+          return `cp: cannot create '${dst}': No such file or directory`
+        }
+
+        if (writeFile(dstPath, content)) {
+          return ""
+        }
+        return `cp: cannot create '${dst}': Invalid path`
       }
 
       case "mv": {
@@ -567,25 +586,87 @@ VERSION=1.0.0`
         }
         const src = args[0]
         const dst = args[1]
-        const newRoot = deepClone(root)
-        const dir = getDirectory(currentPath)
-        if (dir?.type === "directory" && dir.children?.[src]) {
-          const parts = currentPath.split("/").filter(Boolean)
-          let current: FileNode = newRoot
-          for (const part of parts) {
-            if (current.children && current.children[part]) {
-              current = current.children[part]
-            }
-          }
-          if (current.type === "directory" && current.children) {
-            const srcNode = current.children[src]
-            current.children[dst] = srcNode
-            delete current.children[src]
-            setFileSystem(newRoot)
-            return ""
-          }
+
+        let srcPath = src
+        if (!src.startsWith("/")) {
+          srcPath = `${currentPath}/${src}`
         }
-        return `mv: ${src}: No such file or directory`
+
+        // Read source file
+        const content = readFile(srcPath)
+        if (content === null) {
+          return `mv: ${src}: No such file or directory`
+        }
+
+        let dstPath = dst
+        if (!dst.startsWith("/")) {
+          dstPath = `${currentPath}/${dst}`
+        }
+
+        const dstParts = dstPath.split("/").filter(Boolean)
+        const dstFilename = dstParts.pop()
+        const dstDir = dstParts.length > 0 ? `/${dstParts.join("/")}` : "/"
+
+        if (!getDirectory(dstDir)) {
+          return `mv: cannot move '${src}' to '${dst}': No such file or directory`
+        }
+
+        const writeSuccess = writeFile(dstPath, content)
+        if (writeSuccess) {
+          // Only delete source if write was successful
+          const deleteSuccess = deleteNode(srcPath)
+          if (!deleteSuccess) {
+            return `mv: warning: file copied to '${dst}' but source could not be removed`
+          }
+          return ""
+        }
+        return `mv: cannot move '${src}' to '${dst}': Write failed`
+      }
+
+      case "awk": {
+        if (args.length < 2) {
+          return "awk: usage: awk '<pattern>' <file>"
+        }
+
+        const pattern = args[0].replace(/^['"]|['"]$/g, "")
+        const filename = args[1]
+        const content = readFile(filename)
+
+        if (content === null) {
+          return `awk: ${filename}: No such file`
+        }
+
+        const lines = content.split("\n")
+        const results: string[] = []
+
+        // Simple awk pattern matching
+        // Support basic patterns like {print $1}, {print $2}, etc.
+        const printMatch = pattern.match(/\{print\s+\$(\d+)\}/)
+        if (printMatch) {
+          const fieldNum = Number.parseInt(printMatch[1])
+          lines.forEach((line) => {
+            const fields = line.split(/\s+/)
+            if (fields[fieldNum - 1]) {
+              results.push(fields[fieldNum - 1])
+            }
+          })
+          return results.join("\n")
+        }
+
+        // Support pattern matching with /pattern/ {print}
+        const patternMatch = pattern.match(/\/(.+?)\/\s*\{print\}/)
+        if (patternMatch) {
+          const searchPattern = patternMatch[1].toLowerCase()
+          lines.forEach((line) => {
+            if (line.toLowerCase().includes(searchPattern)) {
+              results.push(line)
+            }
+          })
+          return results.length > 0 ? results.join("\n") : ""
+        }
+
+        // Default: just print all lines
+        return content
       }
 
       case "history":
