@@ -25,12 +25,55 @@ export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, 
   const [input, setInput] = useState("")
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
+  const [pyodide, setPyodide] = useState<any>(null)
+  const [pyodideLoading, setPyodideLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
   const fileSystem = useFileSystemContext()
   const webServer = useWebServer()
   const php = usePHP()
   const mysql = useMySQL()
+
+  useEffect(() => {
+    const loadPyodide = async () => {
+      if ((window as any).pyodideInstance) {
+        setPyodide((window as any).pyodideInstance)
+        return
+      }
+
+      try {
+        let attempts = 0
+        const maxAttempts = 50
+
+        while (attempts < maxAttempts && typeof (window as any).loadPyodide !== "function") {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          attempts++
+        }
+
+        if (typeof (window as any).loadPyodide === "function") {
+          const pyodideModule = await (window as any).loadPyodide({
+            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/",
+          })
+          ;(window as any).pyodideInstance = pyodideModule
+          setPyodide(pyodideModule)
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load Pyodide for terminal:", error)
+      }
+    }
+
+    const existingScript = document.getElementById("pyodide-script")
+    if (!existingScript) {
+      const script = document.createElement("script")
+      script.id = "pyodide-script"
+      script.src = "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"
+      script.async = true
+      script.onload = () => loadPyodide()
+      document.head.appendChild(script)
+    } else {
+      loadPyodide()
+    }
+  }, [])
 
   useEffect(() => {
     if (outputRef.current) {
@@ -145,11 +188,86 @@ export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, 
     }
 
     if (command === "python" || command === "python3") {
-      if (onOpenPython) {
-        onOpenPython()
-        setHistory((prev) => [...prev, "Opening Python interpreter...", ""])
+      if (args.length > 0) {
+        const filename = args[0]
+        const content = fileSystem.readFile(filename)
+
+        if (content === null) {
+          setHistory((prev) => [...prev, `python: ${filename}: No such file`, ""])
+          setInput("")
+          return
+        }
+
+        if (!pyodide) {
+          setHistory((prev) => [...prev, "Python is loading, please wait...", ""])
+          setInput("")
+          return
+        }
+
+        try {
+          const importMatches = content.match(/(?:^|\n)(?:import|from)\s+(\w+)/g)
+          if (importMatches) {
+            const packageMap: Record<string, string> = {
+              pandas: "pandas",
+              numpy: "numpy",
+              matplotlib: "matplotlib",
+              scipy: "scipy",
+              sklearn: "scikit-learn",
+              requests: "requests",
+            }
+
+            for (const match of importMatches) {
+              const packageName = match
+                .replace(/(?:import|from)\s+/, "")
+                .trim()
+                .toLowerCase()
+              const packageToLoad = packageMap[packageName]
+              if (packageToLoad) {
+                try {
+                  await pyodide.loadPackage(packageToLoad)
+                } catch (loadError) {
+                  console.log(`[v0] Package ${packageToLoad} already loaded or failed`)
+                }
+              }
+            }
+          }
+
+          await pyodide.runPythonAsync(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+sys.stderr = StringIO()
+`)
+
+          await pyodide.runPythonAsync(content)
+
+          const stdout = await pyodide.runPythonAsync("sys.stdout.getvalue()")
+          const stderr = await pyodide.runPythonAsync("sys.stderr.getvalue()")
+
+          await pyodide.runPythonAsync(`
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
+`)
+
+          if (stdout) {
+            setHistory((prev) => [...prev, stdout.trim(), ""])
+          }
+          if (stderr) {
+            setHistory((prev) => [...prev, stderr.trim(), ""])
+          }
+          if (!stdout && !stderr) {
+            setHistory((prev) => [...prev, ""])
+          }
+        } catch (error: any) {
+          setHistory((prev) => [...prev, `Error: ${error.message || String(error)}`, ""])
+        }
       } else {
-        setHistory((prev) => [...prev, "Python interpreter not available", ""])
+        if (onOpenPython) {
+          onOpenPython()
+          setHistory((prev) => [...prev, "Opening Python interpreter...", ""])
+        } else {
+          setHistory((prev) => [...prev, "Python interpreter not available", ""])
+        }
       }
       setInput("")
       return
