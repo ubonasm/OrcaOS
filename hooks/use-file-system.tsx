@@ -695,22 +695,27 @@ VERSION=1.0.0`
         const lines = content.split("\n")
         const results: string[] = []
 
-        // Simple awk pattern matching
-        // Support basic patterns like {print $1}, {print $2}, etc.
-        const printMatch = pattern.match(/\{print\s+\$(\d+)\}/)
+        // Match print statements with either curly braces or parentheses
+        const printMatch = pattern.match(/[{(]print\s+\$(\d+)[})]/)
         if (printMatch) {
           const fieldNum = Number.parseInt(printMatch[1])
           lines.forEach((line) => {
-            const fields = line.split(/\s+/)
-            if (fields[fieldNum - 1]) {
-              results.push(fields[fieldNum - 1])
+            if (fieldNum === 0) {
+              // $0 means print the entire line
+              results.push(line)
+            } else {
+              // $1, $2, etc. means print specific fields
+              const fields = line.split(/\s+/)
+              if (fields[fieldNum - 1]) {
+                results.push(fields[fieldNum - 1])
+              }
             }
           })
           return results.join("\n")
         }
 
-        // Support pattern matching with /pattern/ {print}
-        const patternMatch = pattern.match(/\/(.+?)\/\s*\{print\}/)
+        // Support pattern matching with /pattern/ {print} or /pattern/ (print)
+        const patternMatch = pattern.match(/\/(.+?)\/\s*[{(]print[})]/)
         if (patternMatch) {
           const searchPattern = patternMatch[1].toLowerCase()
           lines.forEach((line) => {
@@ -721,8 +726,7 @@ VERSION=1.0.0`
           return results.length > 0 ? results.join("\n") : ""
         }
 
-        // Default: just print all lines
-        return content
+        return `awk: invalid pattern '${pattern}'`
       }
 
       case "history":
