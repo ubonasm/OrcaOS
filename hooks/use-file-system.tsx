@@ -246,43 +246,46 @@ export function useFileSystem(): FileSystem {
   }
 
   const writeFile = (path: string, content: string): boolean => {
+    console.log("[v0] writeFile called with path:", path)
     let fullPath = path
     if (!path.startsWith("/")) {
       fullPath = `${currentPath}/${path}`
     }
+    console.log("[v0] writeFile fullPath:", fullPath)
 
     const parts = fullPath.split("/").filter(Boolean)
     if (parts.length === 0) {
+      console.log("[v0] writeFile failed: no parts")
       return false
     }
 
     const filename = parts.pop()!
+    console.log("[v0] writeFile filename:", filename, "parts:", parts)
 
-    setRoot((currentRoot) => {
-      const newRoot = deepClone(currentRoot)
-      let current: FileNode = newRoot
+    const newRoot = deepClone(root)
+    let current: FileNode = newRoot
 
-      for (const part of parts) {
-        if (current.type === "directory" && current.children && current.children[part]) {
-          current = current.children[part]
-        } else {
-          return currentRoot
-        }
+    for (const part of parts) {
+      if (current.type === "directory" && current.children && current.children[part]) {
+        current = current.children[part]
+      } else {
+        console.log("[v0] writeFile failed: path not found at part", part)
+        return false
       }
+    }
 
-      if (current.type === "directory" && current.children) {
-        current.children[filename] = {
-          type: "file",
-          content: content,
-        }
-
-        return newRoot
+    if (current.type === "directory" && current.children) {
+      current.children[filename] = {
+        type: "file",
+        content: content,
       }
+      setFileSystem(newRoot)
+      console.log("[v0] writeFile success, file created")
+      return true
+    }
 
-      return currentRoot
-    })
-
-    return true
+    console.log("[v0] writeFile failed: current is not a directory")
+    return false
   }
 
   const readFile = (path: string): string | null => {
@@ -587,40 +590,93 @@ VERSION=1.0.0`
         const src = args[0]
         const dst = args[1]
 
+        console.log("[v0] mv command: src=", src, "dst=", dst)
+
         let srcPath = src
         if (!src.startsWith("/")) {
           srcPath = `${currentPath}/${src}`
         }
+        console.log("[v0] mv srcPath:", srcPath)
+
+        const srcParts = srcPath.split("/").filter(Boolean)
+        const srcFilename = srcParts[srcParts.length - 1]
 
         // Read source file
         const content = readFile(srcPath)
         if (content === null) {
           return `mv: ${src}: No such file or directory`
         }
+        console.log("[v0] mv source file read successfully, content length:", content.length)
 
         let dstPath = dst
         if (!dst.startsWith("/")) {
           dstPath = `${currentPath}/${dst}`
         }
+        console.log("[v0] mv initial dstPath:", dstPath)
+
+        if (dstPath.endsWith("/") || getDirectory(dstPath)?.type === "directory") {
+          // Destination is a directory, append source filename
+          const cleanDstPath = dstPath.replace(/\/$/, "")
+          dstPath = `${cleanDstPath}/${srcFilename}`
+          console.log("[v0] mv adjusted dstPath for directory:", dstPath)
+        }
 
         const dstParts = dstPath.split("/").filter(Boolean)
         const dstFilename = dstParts.pop()
         const dstDir = dstParts.length > 0 ? `/${dstParts.join("/")}` : "/"
+        console.log("[v0] mv dstDir:", dstDir, "dstFilename:", dstFilename)
 
-        if (!getDirectory(dstDir)) {
-          return `mv: cannot move '${src}' to '${dst}': No such file or directory`
+        if (!dstFilename) {
+          return `mv: cannot move '${src}' to '${dst}': Invalid destination`
         }
 
-        const writeSuccess = writeFile(dstPath, content)
-        if (writeSuccess) {
-          // Only delete source if write was successful
-          const deleteSuccess = deleteNode(srcPath)
-          if (!deleteSuccess) {
+        // Perform move in a single transaction
+        const newRoot = deepClone(root)
+
+        // Navigate to destination directory and create file
+        let dstCurrent: FileNode = newRoot
+        for (const part of dstParts) {
+          if (dstCurrent.type === "directory" && dstCurrent.children && dstCurrent.children[part]) {
+            dstCurrent = dstCurrent.children[part]
+          } else {
+            return `mv: cannot move '${src}' to '${dst}': No such file or directory`
+          }
+        }
+
+        if (dstCurrent.type !== "directory" || !dstCurrent.children) {
+          return `mv: cannot move '${src}' to '${dst}': Destination is not a directory`
+        }
+
+        // Create file at destination
+        dstCurrent.children[dstFilename] = {
+          type: "file",
+          content: content,
+        }
+        console.log("[v0] mv file created at destination")
+
+        // Navigate to source directory and delete file
+        const srcPartsForDelete = srcPath.split("/").filter(Boolean)
+        const srcFilenameForDelete = srcPartsForDelete.pop()!
+
+        let srcCurrent: FileNode = newRoot
+        for (const part of srcPartsForDelete) {
+          if (srcCurrent.type === "directory" && srcCurrent.children && srcCurrent.children[part]) {
+            srcCurrent = srcCurrent.children[part]
+          } else {
+            // This shouldn't happen since we already read the file, but handle it anyway
             return `mv: warning: file copied to '${dst}' but source could not be removed`
           }
-          return ""
         }
-        return `mv: cannot move '${src}' to '${dst}': Write failed`
+
+        if (srcCurrent.type === "directory" && srcCurrent.children && srcCurrent.children[srcFilenameForDelete]) {
+          delete srcCurrent.children[srcFilenameForDelete]
+          console.log("[v0] mv source file deleted")
+        }
+
+        // Update filesystem with both changes
+        setFileSystem(newRoot)
+        console.log("[v0] mv operation complete")
+        return ""
       }
 
       case "awk": {
@@ -675,6 +731,91 @@ VERSION=1.0.0`
       default:
         return `${command}: command not found`
     }
+  }
+
+  const moveNode = (srcPath: string, dstPath: string): boolean => {
+    console.log("[v0] moveNode: srcPath=", srcPath, "dstPath=", dstPath)
+
+    // Get source file
+    const srcParts = srcPath.split("/").filter(Boolean)
+    if (srcParts.length === 0) return false
+    const srcFilename = srcParts[srcParts.length - 1]
+
+    // Read source content
+    let srcCurrent: FileNode = root
+    for (let i = 0; i < srcParts.length - 1; i++) {
+      const part = srcParts[i]
+      if (srcCurrent.type === "directory" && srcCurrent.children && srcCurrent.children[part]) {
+        srcCurrent = srcCurrent.children[part]
+      } else {
+        console.log("[v0] moveNode: source path not found")
+        return false
+      }
+    }
+
+    if (srcCurrent.type !== "directory" || !srcCurrent.children || !srcCurrent.children[srcFilename]) {
+      console.log("[v0] moveNode: source file not found")
+      return false
+    }
+
+    const sourceFile = srcCurrent.children[srcFilename]
+    if (sourceFile.type !== "file") {
+      console.log("[v0] moveNode: source is not a file")
+      return false
+    }
+
+    const content = sourceFile.content || ""
+    console.log("[v0] moveNode: source content length:", content.length)
+
+    // Create new root with both operations
+    const newRoot = deepClone(root)
+
+    // Navigate to destination and create file
+    const dstParts = dstPath.split("/").filter(Boolean)
+    if (dstParts.length === 0) return false
+    const dstFilename = dstParts.pop()!
+
+    let dstCurrent: FileNode = newRoot
+    for (const part of dstParts) {
+      if (dstCurrent.type === "directory" && dstCurrent.children && dstCurrent.children[part]) {
+        dstCurrent = dstCurrent.children[part]
+      } else {
+        console.log("[v0] moveNode: destination path not found at part:", part)
+        return false
+      }
+    }
+
+    if (dstCurrent.type !== "directory" || !dstCurrent.children) {
+      console.log("[v0] moveNode: destination is not a directory")
+      return false
+    }
+
+    // Create file at destination
+    dstCurrent.children[dstFilename] = {
+      type: "file",
+      content: content,
+    }
+    console.log("[v0] moveNode: file created at destination")
+
+    // Remove file from source
+    const srcParentParts = srcPath.split("/").filter(Boolean)
+    srcParentParts.pop()
+
+    let srcParent: FileNode = newRoot
+    for (const part of srcParentParts) {
+      if (srcParent.type === "directory" && srcParent.children && srcParent.children[part]) {
+        srcParent = srcParent.children[part]
+      }
+    }
+
+    if (srcParent.type === "directory" && srcParent.children && srcParent.children[srcFilename]) {
+      delete srcParent.children[srcFilename]
+      console.log("[v0] moveNode: source file deleted")
+    }
+
+    setFileSystem(newRoot)
+    console.log("[v0] moveNode: operation complete")
+    return true
   }
 
   return {
