@@ -46,7 +46,40 @@ export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, 
     setCommandHistory([...commandHistory, trimmedCmd])
     setHistoryIndex(-1)
 
-    const [command, ...args] = trimmedCmd.split(" ")
+    const parseCommand = (cmdStr: string): string[] => {
+      const parts: string[] = []
+      let current = ""
+      let inQuote = false
+      let quoteChar = ""
+
+      for (let i = 0; i < cmdStr.length; i++) {
+        const char = cmdStr[i]
+
+        if ((char === '"' || char === "'") && !inQuote) {
+          inQuote = true
+          quoteChar = char
+        } else if (char === quoteChar && inQuote) {
+          inQuote = false
+          quoteChar = ""
+        } else if (char === " " && !inQuote) {
+          if (current) {
+            parts.push(current)
+            current = ""
+          }
+        } else {
+          current += char
+        }
+      }
+
+      if (current) {
+        parts.push(current)
+      }
+
+      return parts
+    }
+
+    const parts = parseCommand(trimmedCmd)
+    const [command, ...args] = parts
 
     if (command === "mysql") {
       if (onOpenMySQL) {

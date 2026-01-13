@@ -27,8 +27,19 @@ export function PythonRepl({ onClose }: PythonReplProps) {
   useEffect(() => {
     const loadPyodide = async () => {
       try {
-        // @ts-ignore
-        const pyodideModule = await window.loadPyodide({
+        let attempts = 0
+        const maxAttempts = 50 // 5 seconds max
+
+        while (attempts < maxAttempts && typeof (window as any).loadPyodide !== "function") {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          attempts++
+        }
+
+        if (typeof (window as any).loadPyodide !== "function") {
+          throw new Error("Pyodide script failed to load")
+        }
+
+        const pyodideModule = await (window as any).loadPyodide({
           indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/",
         })
         setPyodide(pyodideModule)
@@ -44,19 +55,29 @@ export function PythonRepl({ onClose }: PythonReplProps) {
       }
     }
 
-    // Load Pyodide script if not already loaded
-    if (!document.getElementById("pyodide-script")) {
+    const existingScript = document.getElementById("pyodide-script")
+    if (!existingScript) {
       const script = document.createElement("script")
       script.id = "pyodide-script"
       script.src = "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"
       script.async = true
-      script.onload = () => loadPyodide()
+      script.onload = () => {
+        console.log("[v0] Pyodide script loaded")
+        loadPyodide()
+      }
       script.onerror = () => {
-        setHistory((prev) => [...prev, { type: "error", content: "Failed to load Pyodide script" }])
+        console.error("[v0] Failed to load Pyodide script")
+        setHistory((prev) => [...prev, { type: "error", content: "Failed to load Pyodide script from CDN" }])
         setIsLoading(false)
       }
       document.head.appendChild(script)
+    } else if ((window as any).loadPyodide) {
+      // Script already loaded and ready
+      loadPyodide()
     } else {
+      // Script exists but may still be loading
+      existingScript.addEventListener("load", () => loadPyodide())
+      // Also try polling in case the load event already fired
       loadPyodide()
     }
   }, [])
@@ -76,15 +97,24 @@ export function PythonRepl({ onClose }: PythonReplProps) {
     try {
       const importMatch = code.match(/^(?:import|from)\s+(\w+)/)
       if (importMatch) {
-        const packageName = importMatch[1]
-        const commonPackages = ["numpy", "pandas", "matplotlib", "scipy", "scikit-learn", "requests"]
+        const packageName = importMatch[1].toLowerCase()
+        const packageMap: Record<string, string> = {
+          pandas: "pandas",
+          numpy: "numpy",
+          matplotlib: "matplotlib",
+          scipy: "scipy",
+          sklearn: "scikit-learn",
+          requests: "requests",
+        }
 
-        if (commonPackages.includes(packageName)) {
+        const packageToLoad = packageMap[packageName]
+        if (packageToLoad) {
           try {
-            setHistory((prev) => [...prev, { type: "output", content: `Loading package '${packageName}'...` }])
-            await pyodide.loadPackage(packageName)
+            setHistory((prev) => [...prev, { type: "output", content: `Loading package '${packageToLoad}'...` }])
+            await pyodide.loadPackage(packageToLoad)
           } catch (loadError: any) {
-            // If package loading fails, continue anyway (might already be loaded)
+            // Package might already be loaded, continue
+            console.log(`[v0] Package ${packageToLoad} already loaded or failed to load`)
           }
         }
       }
