@@ -168,8 +168,14 @@ export function Desktop() {
 
   return (
     <div className="h-screen w-screen bg-background overflow-hidden relative">
-      {/* Desktop background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/japanese-landscape.jpg')",
+          opacity: 0.85,
+        }}
+      />
+      <div className="absolute inset-0 bg-background/20" />
 
       {showSplash && (
         <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-[9999] flex items-center justify-center">
