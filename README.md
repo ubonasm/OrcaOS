@@ -166,6 +166,8 @@ $ whoami
 1. アイコンをクリックする
 
 
+[see X for OrcaOS](https://x.com/NU_OrcaOS/status/2011411728182161523?s=20)
+
 
 ## Python
 1. ターミナルの起動
