@@ -7,6 +7,7 @@ import { useFileSystemContext } from "@/contexts/file-system-context"
 import { useWebServer } from "@/contexts/web-server-context"
 import { usePHP } from "@/contexts/php-context"
 import { useMySQL } from "@/contexts/mysql-context"
+import { useMountedFolder } from "@/contexts/mounted-folder-context"
 
 interface TerminalProps {
   onOpenEditor?: (filename: string, content: string, type: "vi" | "nano") => void
@@ -18,7 +19,7 @@ interface TerminalProps {
 
 export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, onOpenMySQL }: TerminalProps) {
   const [history, setHistory] = useState<string[]>([
-    "OrcaOS v1.0.0 - Web-based OS Simulator",
+    "OrcaOS v1.1.0 - Web-based OS Simulator",
     'Type "help" for available commands',
     "",
   ])
@@ -33,6 +34,7 @@ export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, 
   const webServer = useWebServer()
   const php = usePHP()
   const mysql = useMySQL()
+  const mountedFolder = useMountedFolder()
 
   useEffect(() => {
     const loadPyodide = async () => {
@@ -290,7 +292,91 @@ sys.stderr = sys.__stderr__
       return
     }
 
-    const output = fileSystem.executeCommand(command, args)
+    if (command === "mount") {
+      try {
+        if (typeof window === "undefined" || !("showDirectoryPicker" in window)) {
+          setHistory((prev) => [...prev, "mount: File System Access API not supported in this browser", ""])
+          setInput("")
+          return
+        }
+
+        setHistory((prev) => [...prev, "Opening folder picker...", ""])
+
+        const dirHandle = await (window as any).showDirectoryPicker()
+
+        if (dirHandle) {
+          const folderName = dirHandle.name
+
+          mountedFolder.setDirectoryHandle(dirHandle)
+
+          const syncFolder = async (handle: FileSystemDirectoryHandle, basePath: string) => {
+            for await (const entry of (handle as any).values()) {
+              const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name
+
+              if (entry.kind === "directory") {
+                fileSystem.createDirectory(`/home/user/data/${entryPath}`)
+                await syncFolder(entry, entryPath)
+              } else if (entry.kind === "file") {
+                const fileHandle = entry as FileSystemFileHandle
+                const file = await fileHandle.getFile()
+
+                const isImage = /\.(png|jpg|jpeg|gif|bmp|webp|svg|ico)$/i.test(entry.name)
+
+                if (isImage) {
+                  const arrayBuffer = await file.arrayBuffer()
+                  const base64 = btoa(
+                    new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ""),
+                  )
+                  const mimeType = file.type || "image/png"
+                  const dataUrl = `data:${mimeType};base64,${base64}`
+                  fileSystem.writeFile(`/home/user/data/${entryPath}`, dataUrl)
+                } else {
+                  const content = await file.text()
+                  fileSystem.writeFile(`/home/user/data/${entryPath}`, content)
+                }
+              }
+            }
+          }
+
+          await syncFolder(dirHandle, "")
+
+          setHistory((prev) => [
+            ...prev,
+            `Mounted: ${folderName} to /home/user/data/`,
+            "Files synced to virtual filesystem",
+            "Use 'ls data' to see files",
+            "",
+          ])
+        }
+      } catch (error: any) {
+        if (error.name === "AbortError") {
+          setHistory((prev) => [...prev, "mount: Folder selection cancelled", ""])
+        } else {
+          setHistory((prev) => [...prev, `mount: Error - ${error.message || error}`, ""])
+        }
+      }
+      setInput("")
+      return
+    }
+
+    if (command === "unmount") {
+      if (mountedFolder.isMounted) {
+        mountedFolder.unmountFolder()
+        setHistory((prev) => [...prev, "Unmounted /home/user/data/", ""])
+      } else {
+        setHistory((prev) => [...prev, "unmount: No folder is currently mounted", ""])
+      }
+      setInput("")
+      return
+    }
+
+    const output = await fileSystem.executeCommand(command, args)
+
+    if (output === "@@MOUNT_FOLDER@@") {
+      setHistory((prev) => [...prev, "mount: Use mount command to select a folder", ""])
+      setInput("")
+      return
+    }
 
     setHistory((prev) => [...prev, output, ""])
     setInput("")
