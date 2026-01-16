@@ -1,14 +1,9 @@
 # OrcaOS - Web-based OS Simulator
-<img width="320" height="320" alt="orca-icon" src="https://github.com/user-attachments/assets/8f806289-0d74-4f4c-b5ce-1252bdc81959" />
 
 超軽量なウェブベースのOSシミュレーター。デスクトップUI、ターミナル、ファイルマネージャーを備えています。
 
-OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, terminal, file manager, Notebook for Python and R, and LAMP(Apache, MySL, PHP).
+## 特徴
 
-<img width="320" alt="スクリーンショット 2026-01-09 123741" src="https://github.com/user-attachments/assets/c63808e2-09a2-432a-8609-2dbd8fe3d363" />
-
-
-## Features(特徴)
 - デスクトップ環境（ウィンドウのドラッグ、リサイズ、最小化、最大化）
 - 高機能ターミナル（30以上のLinuxコマンドをサポート）
 - ファイルマネージャー（仮想ファイルシステム）
@@ -16,79 +11,71 @@ OrcaOS is a lightweight web-based OS simulator. It features a desktop UI, termin
 - 完全にブラウザで動作
 - クロスプラットフォーム対応（Windows、macOS、Linux）
 
-- Desktop environment (window dragging, resizing, minimizing, maximizing)
-- Powerful terminal (supports over 30 Linux commands)
-- File manager (virtual file system)
-- Modern dark theme
-- Runs entirely in your browser
-- Cross-platform support (Windows, macOS, Linux)
+## 最も簡単な実行方法
 
-<img width="1200" alt="スクリーンショット 2026-01-09 124158" src="https://github.com/user-attachments/assets/a8b1c6a5-77de-4ce2-8569-5b184f7a8263" />
+### 方法1: v0プレビュー（推奨・最速）
+チャット内の **Version Box** をクリックするだけで即座に実行できます。
 
+### 方法2: Vercelにデプロイ
+右上の **Publish** ボタンをクリックして、オンラインで公開できます。
 
-## System Requirements(システム要件)
-- Node.js 18以上（https://nodejs.org/ からダウンロード）
-- Windows 10/11、macOS、またはLinux
-- モダンなウェブブラウザ
+### 方法3: GitHubからダウンロード
+1. チャット画面右上「⋮」→「Settings」→「GitHub」
+2. 「Create Repository」をクリック
+3. リポジトリをクローン:
+   ```bash
+   git clone <リポジトリURL>
+   cd orcaos
+   npm install
+   npm run dev
+   ```
 
-- Node.js 18 or higher (download from https://nodejs.org/)
-- Windows 10/11, macOS, or Linux
-- Modern web browser
+## Windowsでローカル実行
 
+### 自動セットアップ（推奨）
 
-
-## Running Locally on Windows(ローカル実行)
-### Automatic Setup(自動セットアップ（推奨）)
 1. プロジェクトフォルダを開く
 2. `setup.bat` をダブルクリック
 3. 自動的にインストールと起動が完了します
 
-1. Open the project folder
-2. Double-click `setup.bat`
-3. Installation and startup complete automatically
-
-<img width="320" alt="スクリーンショット 2026-01-09 124246" src="https://github.com/user-attachments/assets/438d122e-a32d-4662-979e-c42282947c2f" />
-
-### Subsequent Running(2回目以降の起動)
+### 2回目以降の起動
 
 `start.bat` をダブルクリックするだけ
-Simply double-click `start.bat`
 
-### Manual Setup(手動セットアップ)
+### 手動セットアップ
 
 コマンドプロンプトで:
-
-In Command Prompt:
 
 ```bash
 # 依存関係をインストール
 npm install
+
 # 開発サーバーを起動
 npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開く
 
-Open http://localhost:3000 in your browser
+## macOS/Linuxでローカル実行
 
+### 自動セットアップ（推奨）
 
-
-## Running Locally on macOS/Linux(macOS/Linuxでローカル実行)
-### Automatic Setup(自動セットアップ（推奨）)
 ```bash
-# Give execution permissions(実行権限を付与)
+# 実行権限を付与
 chmod +x setup.sh start.sh check-system.sh
 
-# Run setup(セットアップを実行)
+# セットアップを実行
 ./setup.sh
 ```
 
-### Subsequent Running(2回目以降の起動)
+### 2回目以降の起動
+
 ```bash
 ./start.sh
 ```
 
-### Manual Setup(手動セットアップ)
+### 手動セットアップ
+
 ```bash
 # 依存関係をインストール
 npm install
@@ -99,10 +86,60 @@ npm run dev
 
 ブラウザで http://localhost:3000 を開く
 
-Open http://localhost:3000 in your browser
+## システム要件
 
+- Node.js 18以上（https://nodejs.org/ からダウンロード）
+- Windows 10/11、macOS、またはLinux
+- モダンなウェブブラウザ
+
+## トラブルシューティング
+
+### Download ZIPでエラーが出る場合
+
+エラー38が表示される場合は、以下のいずれかの方法をお試しください:
+
+1. **GitHub経由**（上記の方法3を参照）
+2. **v0プレビュー**で直接実行（Version Boxをクリック）
+3. **Vercel**にデプロイ（Publishボタンをクリック）
+
+### localhost:3000に接続できない場合
+
+#### Windows
+```bash
+check-system.bat
+```
+
+#### macOS/Linux
+```bash
+./check-system.sh
+```
+
+#### Node.jsを確認
+```bash
+node --version
+```
+表示されない場合は https://nodejs.org/ からインストール
+
+#### 依存関係を再インストール
+```bash
+npm install
+```
+
+#### サーバーを手動起動
+```bash
+npm run dev
+```
+
+#### 別のポートを使用
+```bash
+npm run dev -- -p 3001
+```
+ブラウザで http://localhost:3001 を開く
+
+詳細は `TROUBLESHOOTING.md` を参照してください。
 
 ## 利用可能なターミナルコマンド
+
 ### ファイル操作
 - `ls [dir]` - ディレクトリの内容を表示
 - `cd <dir>` - ディレクトリを移動
@@ -115,10 +152,12 @@ Open http://localhost:3000 in your browser
 - `mv <src> <dst>` - ファイルを移動/名前変更
 - `find <name>` - ファイルを名前で検索
 - `grep <text> <file>` - ファイル内のテキストを検索
+
 ### テキストエディタ
 - `vi <file>` - viエディタ（シミュレート）
 - `nano <file>` - nanoエディタ（シミュレート）
 - `echo <text> [> file]` - テキストを表示/ファイルに書き込み
+
 ### システム情報
 - `clear` - ターミナルをクリア
 - `date` - 現在の日時を表示
@@ -130,7 +169,9 @@ Open http://localhost:3000 in your browser
 - `env` - 環境変数を表示
 - `help` - コマンド一覧を表示
 - `history` - コマンド履歴のヒント
+
 ### 使用例
+
 ```bash
 # ディレクトリを作成してファイルを作成
 $ mkdir myproject
@@ -138,45 +179,19 @@ $ cd myproject
 $ touch readme.txt
 $ echo "Hello OrcaOS" > readme.txt
 $ cat readme.txt
+
 # ファイルを検索
 $ find readme
 $ grep Hello readme.txt
+
 # システム情報を確認
 $ uname
 $ date
 $ whoami
 ```
 
-
-## LAMP機能
-### apacheの起動
-<img width="640" alt="orcaos-01" src="https://github.com/user-attachments/assets/d6ef5527-b81f-48b1-b6d6-d52edcdb662e" />
-
-1. ターミナルを起動する
-2. apache2 start
-
-### webブラウザの起動
-<img width="640" alt="orcaos-02" src="https://github.com/user-attachments/assets/f84c6afe-a998-453b-bdc5-0534aa407a6f" />
-
-1. アイコンをクリックする
-
-### MySQLの利用
-<img width="640" alt="orcaos-03" src="https://github.com/user-attachments/assets/c7159730-6c6e-4a14-a8d3-26a27405c4fa" />
-
-1. アイコンをクリックする
-
-
-[see X for OrcaOS](https://x.com/NU_OrcaOS/status/2011411728182161523?s=20)
-
-
-## Python
-1. ターミナルの起動
-2. Pythonコマンドを入力する
-<img width="640" alt="スクリーンショット 2026-01-09 221506" src="https://github.com/user-attachments/assets/f53762bd-35f7-40fa-87df-faa053f7b4dc" />
-
-
-
 ## プロジェクト構造
+
 ```
 orcaos/
 ├── app/
@@ -202,12 +217,13 @@ orcaos/
 ```
 
 ## 技術スタック
+
 - Next.js 16（React 19）
 - TypeScript
 - Tailwind CSS v4
 - shadcn/ui
 - Next.js Image optimization
 
-
 ## ライセンス
+
 MIT License
