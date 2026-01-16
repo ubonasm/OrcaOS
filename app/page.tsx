@@ -6,6 +6,7 @@ import { WebServerProvider } from "@/contexts/web-server-context"
 import { PHPProvider } from "@/contexts/php-context"
 import { MySQLProvider } from "@/contexts/mysql-context"
 import { useFileSystemContext } from "@/contexts/file-system-context"
+import { MountedFolderProvider } from "@/contexts/mounted-folder-context"
 
 function DesktopWithServers() {
   const fileSystem = useFileSystemContext()
@@ -23,8 +24,10 @@ function DesktopWithServers() {
 
 export default function Page() {
   return (
-    <FileSystemProvider>
-      <DesktopWithServers />
-    </FileSystemProvider>
+    <MountedFolderProvider>
+      <FileSystemProvider>
+        <DesktopWithServers />
+      </FileSystemProvider>
+    </MountedFolderProvider>
   )
 }
