@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import type { FileSystemDirectoryHandle } from "browser-fs-access"
+import { useMountedFolder } from "@/contexts/mounted-folder-context"
 
 export interface FileNode {
   type: "file" | "directory"
@@ -11,13 +13,15 @@ export interface FileNode {
 export interface FileSystem {
   root: FileNode
   currentPath: string
-  executeCommand: (command: string, args: string[]) => string
+  executeCommand: (command: string, args: string[]) => Promise<string>
   getDirectory: (path: string) => FileNode | null
   createFile: (path: string, content: string) => boolean
   createDirectory: (path: string) => boolean
   deleteNode: (path: string) => boolean
   writeFile: (path: string, content: string) => boolean
   readFile: (path: string) => string | null
+  mountedFolderHandle: FileSystemDirectoryHandle | null
+  setMountedFolderHandle: (handle: FileSystemDirectoryHandle | null) => void
 }
 
 const initialFileSystem: FileNode = {
@@ -43,6 +47,10 @@ const initialFileSystem: FileNode = {
                 },
               },
             },
+            data: {
+              type: "directory",
+              children: {},
+            },
           },
         },
       },
@@ -52,7 +60,7 @@ const initialFileSystem: FileNode = {
       children: {
         "config.conf": {
           type: "file",
-          content: "system=orcaos\nversion=1.0.0",
+          content: "system=orcaos\nversion=1.1.0",
         },
       },
     },
@@ -106,6 +114,8 @@ const initialFileSystem: FileNode = {
 export function useFileSystem(): FileSystem {
   const [root, setRoot] = useState<FileNode>(() => JSON.parse(JSON.stringify(initialFileSystem)))
   const [currentPath, setCurrentPath] = useState("/home/user")
+  const [mountedFolderHandle, setMountedFolderHandle] = useState<FileSystemDirectoryHandle | null>(null)
+  const mountedFolder = useMountedFolder()
 
   const setFileSystem = (newRoot: FileNode) => {
     setRoot(() => newRoot)
@@ -320,7 +330,7 @@ export function useFileSystem(): FileSystem {
     return null
   }
 
-  const executeCommand = (command: string, args: string[]): string => {
+  const executeCommand = async (command: string, args: string[]): Promise<string> => {
     switch (command) {
       case "help":
         return `Available commands:
@@ -332,8 +342,8 @@ export function useFileSystem(): FileSystem {
     mkdir <dir>  - Create directory
     touch <file> - Create empty file
     rm <file>    - Remove file or directory
-    cp <src> <dst> - Copy file (basic)
-    mv <src> <dst> - Move/rename file (basic)
+    cp <src> <dst> - Copy file
+    mv <src> <dst> - Move/rename file
     find <name>  - Find files by name
     grep <text> <file> - Search text in file
     
@@ -341,6 +351,10 @@ export function useFileSystem(): FileSystem {
     vi <file>    - Open file in vi editor
     nano <file>  - Open file in nano editor
     echo <text> [> file] - Display text or write to file
+    
+  PC Integration:
+    mount        - Mount PC folder to /home/user/data/
+    unmount      - Unmount PC folder
     
   System Info:
     clear        - Clear terminal
@@ -356,22 +370,40 @@ export function useFileSystem(): FileSystem {
     help         - Show this help message
     history      - Show command history (use arrow keys)`
 
-      case "ls": {
-        const targetPath = args[0] ? (args[0].startsWith("/") ? args[0] : `${currentPath}/${args[0]}`) : currentPath
-        const dir = getDirectory(targetPath)
-        if (dir?.type === "directory" && dir.children) {
-          return Object.entries(dir.children)
-            .map(([name, node]) => {
-              const prefix = node.type === "directory" ? "📁" : "📄"
-              return `${prefix} ${name}`
-            })
-            .join("\n")
+      case "mount": {
+        if (typeof window === "undefined" || !("showDirectoryPicker" in window)) {
+          return "mount: File System Access API not supported in this browser"
         }
-        return "Not a directory"
+
+        // Return a special marker that terminal will handle
+        return "@@MOUNT_FOLDER@@"
       }
 
-      case "pwd":
-        return currentPath
+      case "unmount": {
+        if (!mountedFolder?.isMounted) {
+          return "unmount: No folder is currently mounted"
+        }
+
+        setRoot((currentRoot) => {
+          const newRoot = deepClone(currentRoot)
+          const homeParts = ["home", "user"]
+          let current: any = newRoot
+
+          for (const part of homeParts) {
+            if (!current.children[part]) return currentRoot
+            current = current.children[part]
+          }
+
+          if (current.children.data) {
+            delete current.children.data
+          }
+
+          return newRoot
+        })
+
+        mountedFolder.unmountFolder()
+        return "Unmounted folder from /home/user/data/"
+      }
 
       case "cd": {
         if (args.length === 0) {
@@ -381,40 +413,94 @@ export function useFileSystem(): FileSystem {
         const target = args[0]
         let newPath: string
 
-        if (target === "/") {
-          newPath = "/"
-        } else if (target === "..") {
+        if (target === "..") {
           const parts = currentPath.split("/").filter(Boolean)
           parts.pop()
-          newPath = parts.length > 0 ? `/${parts.join("/")}` : "/"
+          newPath = "/" + parts.join("/") || "/"
+        } else if (target === "~" || target === "") {
+          newPath = "/home/user"
         } else if (target.startsWith("/")) {
           newPath = target
         } else {
-          newPath = currentPath === "/" ? `/${target}` : `${currentPath}/${target}`
+          newPath = `${currentPath}/${target}`
         }
 
+        // Clean up path
+        const cleanParts = newPath.split("/").filter(Boolean)
+        newPath = "/" + cleanParts.join("/")
+
         const dir = getDirectory(newPath)
-        if (dir && dir.type === "directory") {
-          setCurrentPath(newPath)
-          return ""
+        if (!dir) {
+          return `cd: ${target}: No such file or directory`
         }
-        return `cd: ${target}: No such directory`
+        if (dir.type !== "directory") {
+          return `cd: ${target}: Not a directory`
+        }
+
+        setCurrentPath(newPath)
+        return ""
+      }
+
+      case "ls": {
+        const targetPath = args.length > 0 ? args[0] : "."
+        let fullPath = targetPath === "." || targetPath === "" ? currentPath : targetPath
+        if (!fullPath.startsWith("/")) {
+          fullPath = `${currentPath}/${targetPath}`
+        }
+
+        if (fullPath.startsWith("/home/user/data") && mountedFolder?.isMounted) {
+          const relativePath = fullPath.replace("/home/user/data", "").replace(/^\//, "")
+          const entries = await mountedFolder.listMountedDirectory(relativePath)
+          return entries.length > 0 ? entries.join("\n") : "(empty)"
+        }
+
+        const dir = getDirectory(fullPath)
+        if (!dir || dir.type !== "directory") {
+          return `ls: ${targetPath}: No such file or directory`
+        }
+
+        const items = Object.entries(dir.children || {})
+          .map(([name, node]) => {
+            if (node.type === "directory") {
+              return `📁 ${name}`
+            } else {
+              return `📄 ${name}`
+            }
+          })
+          .join("\n")
+
+        return items || ""
       }
 
       case "cat": {
         if (args.length === 0) {
-          return "cat: missing file operand"
+          return "cat: usage: cat <filename>"
         }
         const filename = args[0]
-        const dir = getDirectory(currentPath)
-        if (dir?.type === "directory" && dir.children?.[filename]) {
-          const file = dir.children[filename]
-          if (file.type === "file") {
-            return file.content || ""
+
+        if (filename.startsWith("data/") && mountedFolder?.isMounted) {
+          const relativePath = filename.replace("data/", "")
+          const content = await mountedFolder.readMountedFile(relativePath)
+          if (content !== null) {
+            return content
           }
-          return `cat: ${filename}: Is a directory`
+          return `cat: ${filename}: No such file`
         }
-        return `cat: ${filename}: No such file`
+
+        if (filename.startsWith("/home/user/data/") && mountedFolder?.isMounted) {
+          const relativePath = filename.replace("/home/user/data/", "")
+          const content = await mountedFolder.readMountedFile(relativePath)
+          if (content !== null) {
+            return content
+          }
+          return `cat: ${filename}: No such file`
+        }
+
+        const content = readFile(filename)
+        if (content === null) {
+          return `cat: ${filename}: No such file`
+        }
+        return content
       }
 
       case "mkdir": {
@@ -518,7 +604,7 @@ export function useFileSystem(): FileSystem {
         return new Date().toString()
 
       case "uname":
-        return "OrcaOS 1.0.0 x86_64 GNU/Linux"
+        return "OrcaOS 1.1.0 x86_64 GNU/Linux"
 
       case "whoami":
         return "user"
@@ -544,7 +630,7 @@ USER=user
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 OS=OrcaOS
-VERSION=1.0.0`
+VERSION=1.1.0`
 
       case "cp": {
         if (args.length < 2) {
@@ -558,7 +644,6 @@ VERSION=1.0.0`
           srcPath = `${currentPath}/${src}`
         }
 
-        // Read source file content
         const content = readFile(srcPath)
         if (content === null) {
           return `cp: ${src}: No such file`
@@ -567,6 +652,12 @@ VERSION=1.0.0`
         let dstPath = dst
         if (!dst.startsWith("/")) {
           dstPath = `${currentPath}/${dst}`
+        }
+
+        if (dst.endsWith("/")) {
+          const srcParts = srcPath.split("/").filter(Boolean)
+          const srcFilename = srcParts[srcParts.length - 1]
+          dstPath = dstPath + srcFilename
         }
 
         const dstParts = dstPath.split("/").filter(Boolean)
@@ -601,7 +692,7 @@ VERSION=1.0.0`
         const srcParts = srcPath.split("/").filter(Boolean)
         const srcFilename = srcParts[srcParts.length - 1]
 
-        // Read source file
+        // Read source file content
         const content = readFile(srcPath)
         if (content === null) {
           return `mv: ${src}: No such file or directory`
@@ -832,5 +923,7 @@ VERSION=1.0.0`
     deleteNode,
     writeFile,
     readFile,
+    mountedFolderHandle,
+    setMountedFolderHandle,
   }
 }
