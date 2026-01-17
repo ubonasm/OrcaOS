@@ -13,13 +13,7 @@
 
 ## 最も簡単な実行方法
 
-### 方法1: v0プレビュー（推奨・最速）
-チャット内の **Version Box** をクリックするだけで即座に実行できます。
-
-### 方法2: Vercelにデプロイ
-右上の **Publish** ボタンをクリックして、オンラインで公開できます。
-
-### 方法3: GitHubからダウンロード
+### GitHubからダウンロード
 1. チャット画面右上「⋮」→「Settings」→「GitHub」
 2. 「Create Repository」をクリック
 3. リポジトリをクローン:
@@ -42,19 +36,9 @@
 
 `start.bat` をダブルクリックするだけ
 
-### 手動セットアップ
-
-コマンドプロンプトで:
-
-```bash
-# 依存関係をインストール
-npm install
-
-# 開発サーバーを起動
-npm run dev
-```
 
 ブラウザで http://localhost:3000 を開く
+
 
 ## macOS/Linuxでローカル実行
 
@@ -74,17 +58,8 @@ chmod +x setup.sh start.sh check-system.sh
 ./start.sh
 ```
 
-### 手動セットアップ
-
-```bash
-# 依存関係をインストール
-npm install
-
-# 開発サーバーを起動
-npm run dev
-```
-
 ブラウザで http://localhost:3000 を開く
+
 
 ## システム要件
 
@@ -92,51 +67,6 @@ npm run dev
 - Windows 10/11、macOS、またはLinux
 - モダンなウェブブラウザ
 
-## トラブルシューティング
-
-### Download ZIPでエラーが出る場合
-
-エラー38が表示される場合は、以下のいずれかの方法をお試しください:
-
-1. **GitHub経由**（上記の方法3を参照）
-2. **v0プレビュー**で直接実行（Version Boxをクリック）
-3. **Vercel**にデプロイ（Publishボタンをクリック）
-
-### localhost:3000に接続できない場合
-
-#### Windows
-```bash
-check-system.bat
-```
-
-#### macOS/Linux
-```bash
-./check-system.sh
-```
-
-#### Node.jsを確認
-```bash
-node --version
-```
-表示されない場合は https://nodejs.org/ からインストール
-
-#### 依存関係を再インストール
-```bash
-npm install
-```
-
-#### サーバーを手動起動
-```bash
-npm run dev
-```
-
-#### 別のポートを使用
-```bash
-npm run dev -- -p 3001
-```
-ブラウザで http://localhost:3001 を開く
-
-詳細は `TROUBLESHOOTING.md` を参照してください。
 
 ## 利用可能なターミナルコマンド
 
@@ -152,6 +82,7 @@ npm run dev -- -p 3001
 - `mv <src> <dst>` - ファイルを移動/名前変更
 - `find <name>` - ファイルを名前で検索
 - `grep <text> <file>` - ファイル内のテキストを検索
+- `mount` - PC内のフォルダをマウント
 
 ### テキストエディタ
 - `vi <file>` - viエディタ（シミュレート）
@@ -170,25 +101,7 @@ npm run dev -- -p 3001
 - `help` - コマンド一覧を表示
 - `history` - コマンド履歴のヒント
 
-### 使用例
 
-```bash
-# ディレクトリを作成してファイルを作成
-$ mkdir myproject
-$ cd myproject
-$ touch readme.txt
-$ echo "Hello OrcaOS" > readme.txt
-$ cat readme.txt
-
-# ファイルを検索
-$ find readme
-$ grep Hello readme.txt
-
-# システム情報を確認
-$ uname
-$ date
-$ whoami
-```
 
 ## プロジェクト構造
 
