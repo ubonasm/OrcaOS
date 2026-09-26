@@ -7,6 +7,7 @@ import { useFileSystemContext } from "@/contexts/file-system-context"
 import { useWebServer } from "@/contexts/web-server-context"
 import { usePHP } from "@/contexts/php-context"
 import { useMySQL } from "@/contexts/mysql-context"
+import { useMountedFolder } from "@/contexts/mounted-folder-context"
 
 interface TerminalProps {
   onOpenEditor?: (filename: string, content: string, type: "vi" | "nano") => void
@@ -18,7 +19,7 @@ interface TerminalProps {
 
 export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, onOpenMySQL }: TerminalProps) {
   const [history, setHistory] = useState<string[]>([
-    "OrcaOS v1.0.0 - Web-based OS Simulator",
+    "OrcaOS v1.1.0 - Web-based OS Simulator",
     'Type "help" for available commands',
     "",
   ])
@@ -33,6 +34,7 @@ export function Terminal({ onOpenEditor, onOpenPython, onOpenR, onOpenNotebook, 
   const webServer = useWebServer()
   const php = usePHP()
   const mysql = useMySQL()
+  const mountedFolder = useMountedFolder()
 
   useEffect(() => {
     const loadPyodide = async () => {
@@ -290,7 +292,156 @@ sys.stderr = sys.__stderr__
       return
     }
 
-    const output = fileSystem.executeCommand(command, args)
+    if (command === "mount") {
+      const ensureDir = (relativePath: string) => {
+        // Create each nested directory segment under /home/user/data
+        const segments = relativePath.split("/").filter(Boolean)
+        let currentPath = "/home/user/data"
+        for (const segment of segments) {
+          currentPath = `${currentPath}/${segment}`
+          fileSystem.createDirectory(currentPath)
+        }
+      }
+
+      const fileToVirtualFs = async (file: File, entryPath: string) => {
+        const isImage = /\.(png|jpg|jpeg|gif|bmp|webp|svg|ico)$/i.test(file.name)
+        if (isImage) {
+          const arrayBuffer = await file.arrayBuffer()
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ""),
+          )
+          const mimeType = file.type || "image/png"
+          fileSystem.writeFile(`/home/user/data/${entryPath}`, `data:${mimeType};base64,${base64}`)
+        } else {
+          const content = await file.text()
+          fileSystem.writeFile(`/home/user/data/${entryPath}`, content)
+        }
+      }
+
+      // Fallback that works inside cross-origin iframes (like the v0 preview),
+      // where showDirectoryPicker is blocked by permissions policy.
+      const mountViaInput = () =>
+        new Promise<void>((resolve) => {
+          const input = document.createElement("input")
+          input.type = "file"
+          input.multiple = true
+          ;(input as any).webkitdirectory = true
+          input.style.display = "none"
+
+          input.addEventListener("change", async () => {
+            const files = Array.from(input.files || [])
+            document.body.removeChild(input)
+
+            if (files.length === 0) {
+              setHistory((prev) => [...prev, "mount: Folder selection cancelled", ""])
+              resolve()
+              return
+            }
+
+            let folderName = ""
+            for (const file of files) {
+              const relativePath: string = (file as any).webkitRelativePath || file.name
+              const parts = relativePath.split("/")
+              if (!folderName && parts.length > 1) folderName = parts[0]
+              // Strip the top-level folder name so files land directly under /home/user/data
+              const entryPath = parts.length > 1 ? parts.slice(1).join("/") : file.name
+              const dirPath = entryPath.includes("/") ? entryPath.slice(0, entryPath.lastIndexOf("/")) : ""
+              if (dirPath) ensureDir(dirPath)
+              await fileToVirtualFs(file, entryPath)
+            }
+
+            setHistory((prev) => [
+              ...prev,
+              `Mounted: ${folderName || "folder"} to /home/user/data/`,
+              "Files synced to virtual filesystem",
+              "Use 'ls data' to see files",
+              "",
+            ])
+            resolve()
+          })
+
+          // Some browsers only fire nothing on cancel; append and click for the dialog.
+          document.body.appendChild(input)
+          input.click()
+        })
+
+      try {
+        const canUseDirectoryPicker =
+          typeof window !== "undefined" && "showDirectoryPicker" in window && window.self === window.top
+
+        if (canUseDirectoryPicker) {
+          setHistory((prev) => [...prev, "Opening folder picker...", ""])
+
+          const dirHandle = await (window as any).showDirectoryPicker()
+
+          if (dirHandle) {
+            const folderName = dirHandle.name
+            mountedFolder.setDirectoryHandle(dirHandle)
+
+            const syncFolder = async (handle: FileSystemDirectoryHandle, basePath: string) => {
+              for await (const entry of (handle as any).values()) {
+                const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name
+                if (entry.kind === "directory") {
+                  fileSystem.createDirectory(`/home/user/data/${entryPath}`)
+                  await syncFolder(entry, entryPath)
+                } else if (entry.kind === "file") {
+                  const fileHandle = entry as FileSystemFileHandle
+                  const file = await fileHandle.getFile()
+                  await fileToVirtualFs(file, entryPath)
+                }
+              }
+            }
+
+            await syncFolder(dirHandle, "")
+
+            setHistory((prev) => [
+              ...prev,
+              `Mounted: ${folderName} to /home/user/data/`,
+              "Files synced to virtual filesystem",
+              "Use 'ls data' to see files",
+              "",
+            ])
+          }
+        } else {
+          // Browser has no File System Access API, or we're inside an iframe.
+          await mountViaInput()
+        }
+      } catch (error: any) {
+        if (error?.name === "AbortError") {
+          setHistory((prev) => [...prev, "mount: Folder selection cancelled", ""])
+        } else if (error?.name === "SecurityError" || error?.name === "NotAllowedError") {
+          // showDirectoryPicker is blocked (e.g. iframe) — fall back to the input picker.
+          try {
+            await mountViaInput()
+          } catch (fallbackError: any) {
+            setHistory((prev) => [...prev, `mount: Error - ${fallbackError?.message || fallbackError}`, ""])
+          }
+        } else {
+          setHistory((prev) => [...prev, `mount: Error - ${error?.message || error}`, ""])
+        }
+      }
+      setInput("")
+      return
+    }
+
+    if (command === "unmount") {
+      if (mountedFolder.isMounted) {
+        mountedFolder.unmountFolder()
+        setHistory((prev) => [...prev, "Unmounted /home/user/data/", ""])
+      } else {
+        setHistory((prev) => [...prev, "unmount: No folder is currently mounted", ""])
+      }
+      setInput("")
+      return
+    }
+
+    const output = await fileSystem.executeCommand(command, args)
+
+    if (output === "@@MOUNT_FOLDER@@") {
+      setHistory((prev) => [...prev, "mount: Use mount command to select a folder", ""])
+      setInput("")
+      return
+    }
 
     setHistory((prev) => [...prev, output, ""])
     setInput("")
