@@ -65,7 +65,7 @@ export function WebServerProvider({ children, fileSystem }: { children: ReactNod
         return phpResult
       }
       filePath = "/var/www/html/index.html"
-    } else if (!filePath.startsWith("/var/www/html")) {
+    } else if (!filePath.startsWith("/var/www/html") && !filePath.startsWith("/home/user/data")) {
       filePath = `/var/www/html${filePath}`
     }
 
@@ -73,6 +73,11 @@ export function WebServerProvider({ children, fileSystem }: { children: ReactNod
     const content = fileSystem.readFile(filePath)
 
     if (content !== null) {
+      if (content.startsWith("data:image/")) {
+        // Return as-is for images - the browser component will handle it
+        return content
+      }
+
       if (filePath.endsWith(".php") && phpExecutor) {
         try {
           const phpResult = await phpExecutor(content)
@@ -96,7 +101,45 @@ export function WebServerProvider({ children, fileSystem }: { children: ReactNod
 </html>`
         }
       }
+
+      if (filePath.endsWith(".html") || filePath.endsWith(".htm")) {
+        let processedContent = content
+
+        // Find all image src attributes and replace with data URLs if available
+        const imgRegex = /src=["']([^"']+\.(png|jpg|jpeg|gif|bmp|webp|svg|ico))["']/gi
+        const matches = content.matchAll(imgRegex)
+
+        for (const match of matches) {
+          const imgPath = match[1]
+          // Try to find image in /home/user/data/
+          let imageContent = fileSystem.readFile(`/home/user/data/${imgPath}`)
+          if (!imageContent) {
+            // Try with just the filename
+            const filename = imgPath.split("/").pop()
+            imageContent = fileSystem.readFile(`/home/user/data/${filename}`)
+          }
+          if (!imageContent) {
+            // Try in /var/www/html/
+            imageContent = fileSystem.readFile(`/var/www/html/${imgPath}`)
+          }
+
+          if (imageContent && imageContent.startsWith("data:image/")) {
+            processedContent = processedContent.replace(match[0], `src="${imageContent}"`)
+          }
+        }
+
+        return processedContent
+      }
+
       return content
+    }
+
+    const filename = filePath.split("/").pop()
+    if (filename && /\.(png|jpg|jpeg|gif|bmp|webp|svg|ico)$/i.test(filename)) {
+      const dataContent = fileSystem.readFile(`/home/user/data/${filename}`)
+      if (dataContent && dataContent.startsWith("data:image/")) {
+        return dataContent
+      }
     }
 
     // 404 Not Found
